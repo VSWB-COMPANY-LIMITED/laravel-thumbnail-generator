@@ -159,6 +159,6 @@ use Illuminate\Support\Facades\Route;
 Route::group(['namespace' => 'Dev\ThumbnailGenerator\Http\Controllers'], function () {
     Route::get('resize/{slug}', [
         'uses' => 'PublicController@resize',
-    ])->where('slug', 'storage/(.*).(jpg|jpeg|png|webp|gif)')
+    ])->where('slug', 'storage/(.*)\.(jpg|jpeg|png|webp|gif)')
         ->name('thumbnail.resize');
 });

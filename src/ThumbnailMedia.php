@@ -659,7 +659,7 @@ class ThumbnailMedia extends AppMedia
         }
 
         // Check if WebP already exists
-        $webpPath = str_replace('.' . File::extension($file->url), '.webp', $file->url);
+        $webpPath = preg_replace('/\.[^.\/]+$/', '.webp', $file->url);
         if (Storage::exists($webpPath)) {
             // WebP file exists, just update the record
             Log::info('WebP file already exists, updating record', [
@@ -732,8 +732,10 @@ class ThumbnailMedia extends AppMedia
             }
         }
 
+        $originalFilePath = $file->url;
+
         // Use transaction to ensure data consistency
-        return DB::transaction(function () use ($file, $webpData, $webpPath) {
+        $file = DB::transaction(function () use ($file, $webpData, $webpPath) {
             // Store original file info in options
             $originalOptions = $file->options ?? [];
             if (!is_array($originalOptions)) {
@@ -744,12 +746,6 @@ class ThumbnailMedia extends AppMedia
             $originalOptions['original_size'] = $file->size;
             $originalOptions['converted_to_webp'] = true;
             $originalOptions['converted_at'] = now()->toDateTimeString();
-
-            // Delete original JPG/PNG file from storage
-            $originalFilePath = $file->url;
-            if (Storage::exists($originalFilePath)) {
-                Storage::delete($originalFilePath);
-            }
 
             // Update original record to point to WebP file
             // Ensure name has extension
@@ -769,6 +765,13 @@ class ThumbnailMedia extends AppMedia
 
             return $file;
         });
+
+        // Delete only after the record points to the WebP file: a DB rollback cannot restore a deleted file
+        if (Storage::exists($originalFilePath)) {
+            Storage::delete($originalFilePath);
+        }
+
+        return $file;
     }
 
     /**
@@ -798,7 +801,7 @@ class ThumbnailMedia extends AppMedia
         foreach ($thumbnailPaths as $thumbnailPath) {
             try {
                 // Generate WebP path for thumbnail
-                $webpThumbnailPath = str_replace('.' . File::extension($thumbnailPath), '.webp', $thumbnailPath);
+                $webpThumbnailPath = preg_replace('/\.[^.\/]+$/', '.webp', $thumbnailPath);
 
                 // Skip if WebP already exists
                 if (Storage::exists($webpThumbnailPath)) {
