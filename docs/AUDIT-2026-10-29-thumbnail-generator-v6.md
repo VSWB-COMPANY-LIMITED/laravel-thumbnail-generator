@@ -3,7 +3,19 @@
 - Ngày audit: 2026-10-29
 - Nhánh được audit: `lte.6x`, `lte.6x-is_dev`, `lte.6x-is_platform` (cùng 1 tài liệu này được đặt trên cả 3 nhánh)
 - Người/agent audit: Claude Code, đọc tĩnh mã nguồn
-- **Loại tài liệu: ĐỀ XUẤT. Không có file code nào bị sửa trong lượt audit này.**
+- **Loại tài liệu: ĐỀ XUẤT.** Lượt audit đầu không sửa code. Lượt sau (cùng ngày) chỉ sửa các lỗi đã chứng minh 100% — xem bảng dưới. Mọi mục khác vẫn để nguyên cho agent tích hợp tự điều tra và làm.
+
+### Trạng thái sửa trên nhánh `lte.6x-is_dev` (cập nhật 2026-10-29)
+
+| Mục | Trạng thái | Cách đã chứng minh |
+|---|---|---|
+| 2.1 `convertToWebP()` xoá file gốc trong `DB::transaction` | ✅ Đã sửa: chỉ xoá file gốc **sau khi** transaction trả về thành công. Khi chạy thành công kết quả không đổi; khi DB lỗi, file gốc được giữ | Đọc code: lệnh xoá file nằm trước `createOrUpdate()` trong cùng closure, rollback DB không khôi phục được file |
+| 2.10 `url_tmp()` dùng biến chưa khai báo | — Không áp dụng: lỗi chỉ có ở `lte.6x-is_platform` | — |
+| 2.12 (phần regex) route thiếu `\.` | ✅ Đã sửa `routes/web.php`. Phần chặn `../` vẫn chưa làm (cần điều tra) | Chạy `preg_match` với regex đúng như Symfony bọc: `fooXjpg`, `a_png` khớp regex cũ, không khớp regex mới |
+| 2.16 (mới) Đường dẫn WebP thay `.jpg` cả trong tên thư mục | ✅ Đã sửa 3 chỗ: `PublicController::resize()`, `convertToWebP()`, `convertThumbnailsToWebP()` | `photos.jpg/a.jpg` → cũ ra `photos.webp/a.webp` (lưu/đọc sai thư mục); nay chỉ thay phần mở rộng cuối |
+| Các mục còn lại | ⏳ Chưa làm — cần điều tra hoặc là cải tiến | — |
+
+Các lỗi đã sửa **chưa được chạy trên site CMS thật** (repo không có app). Agent tích hợp vẫn phải tự kiểm lại bằng request/upload thật theo mục 0 — đặc biệt 2.1: giả lập `createOrUpdate()` ném lỗi, kiểm tra file gốc còn trên đĩa.
 - Bản audit dòng v7 nằm ở nhánh `main`/`v7.x`: `docs/AUDIT-2026-10-29-thumbnail-generator.md`. Các nhánh v6 **không merge** với `main`/`v7.x` — mọi đề xuất ở đây phải được làm riêng trên từng nhánh v6.
 
 ---
@@ -57,7 +69,7 @@ Mức độ: 🔴 correctness/security/mất dữ liệu · 🟠 hiệu năng ·
 
 ### Nhóm A — Riêng dòng v6
 
-#### 2.1 🔴 `convertToWebP()` xoá file gốc bên trong `DB::transaction` — rollback DB không khôi phục được file
+#### 2.1 ✅ (đã sửa) `convertToWebP()` xoá file gốc bên trong `DB::transaction` — rollback DB không khôi phục được file
 
 **Vị trí:** `src/ThumbnailMedia.php:716-751` (`convertToWebP`), đoạn `Storage::delete($originalFilePath)` dòng 730-732.
 
@@ -247,7 +259,7 @@ comment, tên file.
 
 ### Nhóm B — Giống dòng v7 (cùng đoạn code, xem thêm bản audit v7 trên `main`)
 
-#### 2.12 🔴 Regex route thiếu escape dấu chấm; `$slug` không được chặn `../`
+#### 2.12 🔴 Regex route thiếu escape dấu chấm (✅ phần regex đã sửa); `$slug` không được chặn `../`
 
 **Vị trí:** `routes/web.php:141` — `'storage/(.*).(jpg|jpeg|png|webp|gif)'`: dấu `.` trước phần mở rộng
 khớp **mọi ký tự**, phải là `\.`. `src/Http/Controllers/PublicController.php:18` — `public_path($slug)`
@@ -299,6 +311,17 @@ cho kết quả giống 100% với cách cũ, trừ các trường hợp đã x�
 - Không có thư mục `tests/`. Viết test baseline là **bước 0** trước mọi mục khác.
 
 ---
+
+#### 2.16 ✅ (đã sửa) Đường dẫn WebP thay phần mở rộng ở mọi vị trí trong path
+
+**Vị trí:** `PublicController::resize()`, `ThumbnailMedia::convertToWebP()`, `ThumbnailMedia::convertThumbnailsToWebP()`.
+
+**Lỗi cũ:** `str_replace('.' . $ext, '.webp', $path)` thay mọi chỗ `.jpg`/`.png` trong toàn đường dẫn, kể cả
+tên thư mục (`photos.jpg/a.jpg` → `photos.webp/a.webp`). Ở `resize()` làm không tìm thấy bản WebP; ở 2
+method convert làm **lưu file WebP vào thư mục sai** và bản ghi trỏ tới đường dẫn đó.
+
+**Đã sửa:** `preg_replace('/\.[^.\/]+$/', '.webp', $path)` — chỉ thay phần mở rộng cuối. Đường dẫn thường cho
+kết quả giống hệt cũ.
 
 ## 3. Không đề xuất (và vì sao)
 
