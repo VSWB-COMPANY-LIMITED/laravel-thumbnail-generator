@@ -4,7 +4,18 @@
 - Branch: `v7.x`
 - Người/agent audit: Claude Code, đọc tĩnh toàn bộ mã nguồn repo này
 - Phạm vi: toàn bộ `src/`, `helpers/`, `routes/`, `resources/`, `composer.json`
-- **Loại tài liệu: ĐỀ XUẤT. Không có file code nào bị sửa trong lượt audit này.**
+- **Loại tài liệu: ĐỀ XUẤT.** Lượt audit đầu không sửa code. Lượt sau (cùng ngày) chỉ sửa các lỗi đã chứng minh 100% — xem bảng dưới. Mọi mục khác vẫn để nguyên cho agent tích hợp tự điều tra và làm.
+
+### Trạng thái sửa (cập nhật 2026-10-29)
+
+| Mục | Trạng thái | Cách đã chứng minh |
+|---|---|---|
+| 2.1 Regex route thiếu `\.` | ✅ Đã sửa (`routes/web.php`) | Chạy `preg_match` với regex đúng như Symfony bọc: `fooXjpg`, `a_png` khớp regex cũ, không khớp regex mới; `a.jpg`, `a-300x200.webp` khớp cả hai |
+| 2.13 (mới) Backblaze CDN bật nhưng không có custom domain → URL mất host | ✅ Đã sửa (`src/ThumbnailMedia.php`, nhánh backblaze trong `url()`) | `str_replace($endpoint, '', Storage::url(...))` cho ra `/bucket/news/a.jpg` (đường dẫn tương đối, sai host). Nay trả `Storage::url($path)` |
+| 2.14 (mới) Đường dẫn WebP thay `.jpg` cả trong tên thư mục | ✅ Đã sửa (`PublicController::resize()`) | `.../photos.jpg/news/a.jpg` → cũ ra `.../photos.webp/news/a.webp`; nay chỉ thay phần mở rộng cuối |
+| Các mục còn lại (2.2–2.12) | ⏳ Chưa làm — cần điều tra hoặc là cải tiến | — |
+
+Các lỗi đã sửa **chưa được chạy trên site CMS thật** (repo không có app). Agent tích hợp vẫn phải tự kiểm lại bằng request thật theo mục 0.
 
 ---
 
@@ -64,7 +75,7 @@ Phát hiện quan trọng nhất **không phải tối ưu tốc độ** mà là
 Ký hiệu mức độ: 🔴 Cao (correctness/security) · 🟠 Trung bình (performance có đo được) · 🟡 Thấp
 (maintainability/code style).
 
-### 2.1 🔴 Route regex `resize/{slug}` không escape dấu chấm trước phần mở rộng
+### 2.1 ✅ (đã sửa) Route regex `resize/{slug}` không escape dấu chấm trước phần mở rộng
 
 **Vị trí:** `routes/web.php:141`
 ```php
@@ -384,6 +395,29 @@ thi nên coi việc viết test này là **bước 0** trước khi đụng vào
 cùng.
 
 ---
+
+### 2.13 ✅ (đã sửa) Backblaze CDN không có custom domain làm mất host của URL
+
+**Vị trí:** `src/ThumbnailMedia.php`, nhánh `media_backblaze_cdn_enabled` trong `url()`.
+
+**Lỗi cũ:** khi CDN Backblaze bật nhưng `media_backblaze_cdn_custom_domain` trống, code gọi
+`str_replace($currentEndpoint, $customDomain, Storage::url($path))` tức là thay endpoint bằng chuỗi
+rỗng → URL còn lại dạng `/bucket/...`, trình duyệt tải từ domain của site → ảnh lỗi.
+
+**Đã sửa:** trả `Storage::url($path)` (URL gốc của Backblaze) khi không có custom domain.
+
+**Agent tích hợp phải tự kiểm:** trên site dùng Backblaze, bật CDN, để trống custom domain, xem `src`
+ảnh trả ra có đúng host Backblaze và tải được không.
+
+### 2.14 ✅ (đã sửa) Đường dẫn WebP thay phần mở rộng ở mọi vị trí trong path
+
+**Vị trí:** `src/Http/Controllers/PublicController.php`, `resize()`.
+
+**Lỗi cũ:** `str_replace('.' . $ext, '.webp', $path)` thay mọi chỗ `.jpg` trong toàn đường dẫn, kể cả
+tên thư mục (`photos.jpg/a.jpg` → `photos.webp/a.webp`) → không tìm thấy bản WebP có thật.
+
+**Đã sửa:** `preg_replace('/\.[^.\/]+$/', '.webp', $path)` — chỉ thay phần mở rộng cuối cùng. Với
+đường dẫn thường, kết quả giống hệt cũ.
 
 ## 3. KHÔNG đề xuất (và vì sao) — để tránh agent thực thi tự suy diễn thêm việc
 

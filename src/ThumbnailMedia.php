@@ -134,12 +134,11 @@ class ThumbnailMedia extends AppMedia
             } else {
                 if ($this->getMediaDriver() === 'backblaze' && (int) setting('media_backblaze_cdn_enabled')) {
                     $customDomain = setting('media_backblaze_cdn_custom_domain');
-                    $currentEndpoint = setting('media_backblaze_endpoint');
                     if ($customDomain) {
                         return $customDomain . '/' . ltrim($path, '/');
                     }
 
-                    return str_replace($currentEndpoint, $customDomain, Storage::url($path));
+                    return Storage::url($path);
                 }
             }
 

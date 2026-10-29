@@ -29,7 +29,7 @@ class PublicController extends BaseController
         
         // Only check for webp if original is jpg, jpeg, or png
         if (in_array(strtolower($originalExtension), ['jpg', 'jpeg', 'png'])) {
-            $webpPath = str_replace('.' . $originalExtension, '.webp', $original_img_path);
+            $webpPath = preg_replace('/\.[^.\/]+$/', '.webp', $original_img_path);
             if (file_exists($webpPath)) {
                 $img_path = $webpPath;
                 $isWebp = true;
