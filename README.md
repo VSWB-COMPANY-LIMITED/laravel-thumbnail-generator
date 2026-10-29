@@ -2,9 +2,12 @@
 
 ## Branches
 
-- 📦 lte.6x-is_dev: sử dụng cho các phiên bản CMS <=6.x và namespace hệ thống dưới dạng `Dev\\`
-- 📦 lte.6x-is_platform: sử dụng cho các phiên bản CMS <=6.x và namespace hệ thống dưới dạng `Platform\\`
-- 📦 v7x: sử dụng cho các phiên bản CMS >=7.x và namespace hệ thống lúc này luôn luôn dưới dạng `Dev\\`
+- 📦 `main` + `v7.x`: dùng cho CMS >=7.x, namespace hệ thống luôn là `Dev\\`. Hai nhánh này **dùng chung một lịch sử** — mọi thay đổi trên `v7.x` được đưa sang `main` (và ngược lại).
+- 📦 `lte.6x`: dùng cho CMS <=6.x.
+- 📦 `lte.6x-is_dev`: dùng cho CMS <=6.x, namespace hệ thống dạng `Dev\\`.
+- 📦 `lte.6x-is_platform`: dùng cho CMS <=6.x, namespace hệ thống dạng `Platform\\`.
+
+> ⚠️ **Quy tắc merge:** chỉ merge giữa `main` ↔ `v7.x`. Các nhánh `lte.6x*` phục vụ phiên bản cũ / phiên bản đặc thù — **KHÔNG merge** vào `main`/`v7.x` và **KHÔNG merge** `main`/`v7.x` vào chúng. Sửa lỗi cần cho nhánh cũ thì làm riêng (hoặc cherry-pick có kiểm tra) trên chính nhánh đó.
 
 Package tự động tạo và tối ưu thumbnail images với hỗ trợ WebP cho Laravel CMS.
 
